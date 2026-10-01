@@ -9,6 +9,8 @@ hojas de contacto y se corrige.
 
 ![Demo: showreel de 15 s hecho con el estudio](docs/demo.gif)
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-sauldev-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/sauldev)
+
 > Basado en la **Guía MOTION** de @saulautomatiza: el setup y
 > los prompts para que Claude arme el video de lanzamiento de tu producto con tu logo, tus
 > capturas y música, sin que se note hecho con IA.
@@ -130,7 +132,9 @@ estudios existentes puedan actualizarse con `init.mjs --update`.
 
 ## Apoyar el proyecto
 
-Si el estudio te ahorra horas, puedes invitarme un café: [buymeacoffee.com/sauldev](https://buymeacoffee.com/sauldev).
+Si el estudio te ahorra horas, puedes invitarme un café:
+
+<a href="https://buymeacoffee.com/sauldev"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="48"></a>
 
 ## Licencia
 
