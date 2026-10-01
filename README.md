@@ -128,6 +128,10 @@ npm run sync-skill -- --check # lo que corre la CI
 Sube la versión en `package.json` (`version` y `motionStudio.version`) para que los
 estudios existentes puedan actualizarse con `init.mjs --update`.
 
+## Apoyar el proyecto
+
+Si el estudio te ahorra horas, puedes invitarme un café: [buymeacoffee.com/sauldev](https://buymeacoffee.com/sauldev).
+
 ## Licencia
 
 MIT. Usa logos, fuentes y capturas solo de marcas propias o con permiso.
