@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preview · Motion Studio</title>
+<style>
+  :root { color-scheme: dark; --bg: #0b0c0e; --panel: #15171b; --line: #262a31; --ink: #ecebe6; --muted: #8b919a; --accent: #ff4d1f; --beat: #3a3f48; --bar: #5b616c; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; display: grid; grid-template-rows: auto 1fr auto; }
+  header, footer { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  footer { border-top: 1px solid var(--line); border-bottom: 0; flex-direction: column; align-items: stretch; gap: 8px; }
+  a { color: var(--muted); text-decoration: none; } a:hover { color: var(--ink); }
+  select, button { background: #1d2026; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font: inherit; cursor: pointer; }
+  button[aria-pressed='true'] { border-color: var(--accent); color: #fff; }
+  .sp { flex: 1; }
+  #time { font: 13px ui-monospace, monospace; color: var(--muted); white-space: nowrap; }
+  #stagewrap { position: relative; overflow: hidden; display: grid; place-items: center; min-height: 0; }
+  #box { position: relative; box-shadow: 0 0 0 1px var(--line); }
+  #frame { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; background: #000; }
+  #err { position: absolute; inset: 16px; display: none; background: #2a0f0c; color: #ffd2c7; border: 1px solid #ff4d1f; border-radius: 8px; padding: 14px; font: 12px ui-monospace, monospace; white-space: pre-wrap; overflow: auto; z-index: 3; }
+  #tl { position: relative; height: 46px; background: #0f1114; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; user-select: none; touch-action: none; }
+  #tl .m { position: absolute; bottom: 0; width: 1px; background: var(--beat); height: 30%; }
+  #tl .m.bar { background: var(--bar); height: 55%; }
+  #tl .s { position: absolute; top: 4px; width: 7px; height: 7px; margin-left: -3px; border-radius: 50%; background: var(--accent); }
+  #tl .sec { position: absolute; top: 0; height: 12px; font: 10px ui-monospace, monospace; color: var(--muted); padding-left: 4px; border-left: 1px dashed var(--line); }
+  #ph { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; pointer-events: none; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← Videos</a>
+  <select id="pick" aria-label="Video"></select>
+  <span id="fmts" class="row"></span>
+  <button id="safe" aria-pressed="false" title="S">Zona segura</button>
+  <button id="mute" aria-pressed="true" title="M">Audio</button>
+  <span class="sp"></span>
+  <span id="time">—</span>
+</header>
+<div id="stagewrap">
+  <div id="box"><iframe id="frame" title="composición"></iframe></div>
+  <div id="err"></div>
+</div>
+<footer>
+  <div id="tl"><div id="ph"></div></div>
+  <div class="row">
+    <button id="play" title="Espacio">▶ Play</button>
+    <button id="prev" title="←">−1 f</button>
+    <button id="next" title="→">+1 f</button>
+    <span class="hint" id="audioinfo"></span>
+    <span class="sp"></span>
+    <span class="hint">Espacio · ←/→ fotograma · Shift ±1 s · 1/2/3 formato · S zona segura · M audio</span>
+  </div>
+</footer>
+<script type="module">
+const FMT = { '9x16': [1080, 1920], '1x1': [1080, 1080], '16x9': [1920, 1080], '4x5': [1080, 1350] };
+const $ = (id) => document.getElementById(id);
+const frame = $('frame');
+const st = { slug: null, fmt: '9x16', t: 0, playing: false, safe: false, audioOn: true, meta: null, ready: false, list: [] };
+let audio = null;
+let clock0 = 0;
+let t0 = 0;
+
+function readHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  st.slug = h.get('v') ?? st.slug;
+  st.fmt = FMT[h.get('f')] ? h.get('f') : st.fmt;
+  st.t = Number(h.get('t') ?? st.t) || 0;
+  st.safe = h.get('safe') === '1';
+}
+function writeHash() {
+  const h = new URLSearchParams({ v: st.slug, f: st.fmt, t: st.t.toFixed(3) });
+  if (st.safe) h.set('safe', '1');
+  history.replaceState(null, '', `#${h}`);
+}
+
+function fit() {
+  const [w, h] = FMT[st.fmt];
+  const wrap = $('stagewrap').getBoundingClientRect();
+  const s = Math.min((wrap.width - 32) / w, (wrap.height - 32) / h, 1);
+  frame.style.width = `${w}px`;
+  frame.style.height = `${h}px`;
+  frame.style.transform = `scale(${s})`;
+  $('box').style.width = `${w * s}px`;
+  $('box').style.height = `${h * s}px`;
+}
+
+function showError(msg) {
+  $('err').style.display = msg ? 'block' : 'none';
+  $('err').textContent = msg || '';
+}
+
+async function load(keepT = true) {
+  st.ready = false;
+  const [w, h] = FMT[st.fmt];
+  const q = new URLSearchParams({ w, h, fmt: st.fmt, preview: '1', _: Date.now() });
+  if (st.safe) q.set('safe', '1');
+  fit();
+  showError('');
+  frame.src = `/videos/${st.slug}/?${q}`;
+  await new Promise((r) => (frame.onload = r));
+  const win = frame.contentWindow;
+  win.addEventListener('error', (e) => showError(`Error en la composición:\n${e.message}\n${e.filename}:${e.lineno}`));
+  win.addEventListener('unhandledrejection', (e) => showError(`Error en la composición:\n${e.reason?.stack || e.reason}`));
+  try {
+    for (let i = 0; i < 100 && !win.__ready; i++) await new Promise((r) => setTimeout(r, 30));
+    if (!win.__ready) throw new Error('La página no llamó a defineVideo().');
+    await win.__ready;
+  } catch (err) {
+    showError(`No arrancó:\n${err?.stack || err}`);
+    return;
+  }
+  st.meta = win.__meta;
+  st.ready = true;
+  if (!keepT) st.t = 0;
+  st.t = Math.min(st.t, st.meta.duration);
+  drawTimeline();
+  await setupAudio();
+  seek(st.t);
+}
+
+async function setupAudio() {
+  audio?.pause();
+  audio = null;
+  const url = `/out/${st.slug}/mix.wav`;
+  const ok = await fetch(url, { method: 'HEAD' }).then((r) => r.ok).catch(() => false);
+  if (ok) {
+    audio = new Audio(`${url}?_=${Date.now()}`);
+    audio.preload = 'auto';
+    $('audioinfo').textContent = '♪ out/' + st.slug + '/mix.wav (npm run mix -- ' + st.slug + ' para actualizar)';
+  } else $('audioinfo').textContent = `sin audio: npm run mix -- ${st.slug}`;
+}
+
+function seek(t) {
+  if (!st.ready) return;
+  const m = st.meta;
+  st.t = Math.max(0, Math.min(t, m.duration - 1 / m.fps));
+  try {
+    const r = frame.contentWindow.seek(st.t);
+    if (r?.catch) r.catch((e) => showError(String(e?.stack || e)));
+  } catch (e) {
+    showError(`render(t) falló en t=${st.t.toFixed(3)}:\n${e.stack || e}`);
+  }
+  const f = Math.round(st.t * m.fps);
+  const beat = m.beats.findLastIndex((b) => b <= st.t + 1e-6);
+  $('time').textContent = `${st.t.toFixed(2)} / ${m.duration.toFixed(2)} s · f${f} · beat ${beat}`;
+  $('ph').style.left = `${(st.t / m.duration) * 100}%`;
+  writeHash();
+}
+
+function drawTimeline() {
+  const tl = $('tl');
+  tl.querySelectorAll('.m,.s,.sec').forEach((e) => e.remove());
+  const m = st.meta;
+  m.beats.forEach((b, i) => {
+    const d = document.createElement('div');
+    d.className = `m${i % 4 === 0 ? ' bar' : ''}`;
+    d.style.left = `${(b / m.duration) * 100}%`;
+    tl.appendChild(d);
+  });
+  for (const s of m.sections ?? []) {
+    const d = document.createElement('div');
+    d.className = 'sec';
+    d.style.left = `${(s.start / m.duration) * 100}%`;
+    d.textContent = s.energy ?? '';
+    tl.appendChild(d);
+  }
+  for (const s of m.sfx) {
+    const d = document.createElement('div');
+    d.className = 's';
+    d.title = `${s.type} @ ${s.t}s`;
+    d.style.left = `${(s.t / m.duration) * 100}%`;
+    tl.appendChild(d);
+  }
+}
+
+function play(on = !st.playing) {
+  if (!st.ready) return;
+  st.playing = on;
+  $('play').textContent = on ? '❚❚ Pausa' : '▶ Play';
+  if (on) {
+    if (st.t >= st.meta.duration - 1 / st.meta.fps) st.t = 0;
+    t0 = st.t;
+    clock0 = performance.now();
+    if (audio && st.audioOn) {
+      audio.currentTime = st.t;
+      audio.play().catch(() => {});
+    }
+    requestAnimationFrame(tick);
+  } else audio?.pause();
+}
+
+function tick() {
+  if (!st.playing) return;
+  let t = audio && st.audioOn && !audio.paused ? audio.currentTime : t0 + (performance.now() - clock0) / 1000;
+  if (t >= st.meta.duration) {
+    t = 0;
+    t0 = 0;
+    clock0 = performance.now();
+    if (audio && st.audioOn) audio.currentTime = 0;
+  }
+  seek(t);
+  requestAnimationFrame(tick);
+}
+
+function step(dt) {
+  play(false);
+  seek(st.t + dt);
+}
+
+// Timeline: clic y arrastre.
+const tl = $('tl');
+const fromEvent = (e) => {
+  const r = tl.getBoundingClientRect();
+  return ((e.clientX - r.left) / r.width) * st.meta.duration;
+};
+tl.addEventListener('pointerdown', (e) => {
+  if (!st.ready) return;
+  play(false);
+  tl.setPointerCapture(e.pointerId);
+  seek(fromEvent(e));
+  const move = (ev) => seek(fromEvent(ev));
+  tl.addEventListener('pointermove', move);
+  tl.addEventListener('pointerup', () => tl.removeEventListener('pointermove', move), { once: true });
+});
+
+function renderFormats() {
+  const v = st.list.find((x) => x.slug === st.slug);
+  const fmts = v?.formats ?? Object.keys(FMT).slice(0, 3);
+  $('fmts').innerHTML = '';
+  for (const f of fmts) {
+    const b = document.createElement('button');
+    b.textContent = f;
+    b.setAttribute('aria-pressed', String(f === st.fmt));
+    b.onclick = () => setFormat(f);
+    $('fmts').appendChild(b);
+  }
+}
+function setFormat(f) {
+  if (!FMT[f]) return;
+  st.fmt = f;
+  renderFormats();
+  load();
+}
+
+$('play').onclick = () => play();
+$('prev').onclick = () => step(-1 / (st.meta?.fps ?? 30));
+$('next').onclick = () => step(1 / (st.meta?.fps ?? 30));
+$('safe').onclick = () => {
+  st.safe = !st.safe;
+  $('safe').setAttribute('aria-pressed', String(st.safe));
+  load();
+};
+$('mute').onclick = () => {
+  st.audioOn = !st.audioOn;
+  $('mute').setAttribute('aria-pressed', String(st.audioOn));
+  if (!st.audioOn) audio?.pause();
+  else if (st.playing && audio) {
+    audio.currentTime = st.t;
+    audio.play().catch(() => {});
+  }
+};
+$('pick').onchange = (e) => {
+  st.slug = e.target.value;
+  st.t = 0;
+  renderFormats();
+  load(false);
+};
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'SELECT') return;
+  const fps = st.meta?.fps ?? 30;
+  if (e.code === 'Space') (e.preventDefault(), play());
+  else if (e.key === 'ArrowRight') step(e.shiftKey ? 1 : 1 / fps);
+  else if (e.key === 'ArrowLeft') step(e.shiftKey ? -1 : -1 / fps);
+  else if (e.key === 'Home') step(-1e9);
+  else if (e.key === 'End') step(1e9);
+  else if (e.key === 's' || e.key === 'S') $('safe').click();
+  else if (e.key === 'm' || e.key === 'M') $('mute').click();
+  else if (['1', '2', '3', '4'].includes(e.key)) setFormat(Object.keys(FMT)[Number(e.key) - 1]);
+});
+addEventListener('resize', fit);
+
+// Recarga en vivo conservando el instante.
+new EventSource('/__events').onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.type !== 'reload') return;
+  const touches = msg.files.some((f) => f.startsWith(`videos/${st.slug}/`) || f.startsWith('lib/') || f.startsWith('assets/'));
+  if (touches) {
+    const was = st.playing;
+    play(false);
+    load().then(() => was && play(true));
+  }
+};
+
+readHash();
+st.list = await fetch('/__api/videos').then((r) => r.json());
+if (!st.slug) st.slug = st.list[0]?.slug;
+for (const v of st.list) {
+  const o = document.createElement('option');
+  o.value = v.slug;
+  o.textContent = v.template ? `${v.slug} (plantilla)` : v.slug;
+  $('pick').appendChild(o);
+}
+$('pick').value = st.slug;
+$('safe').setAttribute('aria-pressed', String(st.safe));
+renderFormats();
+load();
+</script>
+</body>
+</html>

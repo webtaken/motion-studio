@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  studio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dependencias del sistema
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Dependencias del estudio
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          python -m venv .venv && .venv/bin/pip install -r audio/requirements.txt
+      - name: La skill está sincronizada
+        run: npm run sync-skill -- --check
+      - name: Doctor
+        run: npm run doctor
+      - name: Reglas y determinismo
+        run: |
+          npm run check -- demo
+          npm run check -- _plantilla
+          npm run check -- _producto --format 9x16
+      - name: Render de prueba (borrador con audio)
+        run: npm run render -- demo --to 4 --scale 0.25
+      - name: init.mjs monta un estudio desde cero
+        run: node skills/motion-studio/scripts/init.mjs "$RUNNER_TEMP/estudio" --no-smoke

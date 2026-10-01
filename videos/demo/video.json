@@ -1,0 +1,16 @@
+{
+  "title": "Showreel · seek(t)",
+  "duration": 15,
+  "fps": 30,
+  "bpm": 120,
+  "seed": 2103,
+  "formats": ["9x16", "1x1", "16x9"],
+  "music": { "mode": "compose", "style": "house", "key": "Am" },
+  "sections": [
+    { "start": 0, "end": 2.5, "energy": "hook" },
+    { "start": 2.5, "end": 5, "energy": "build" },
+    { "start": 5, "end": 10, "energy": "drop" },
+    { "start": 10, "end": 12.5, "energy": "break" },
+    { "start": 12.5, "end": 15, "energy": "outro" }
+  ]
+}

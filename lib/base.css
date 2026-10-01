@@ -1,0 +1,121 @@
+/* Base de todas las composiciones. Fuentes locales: al renderizar no hay red. */
+@import url('/lib/fonts/unbounded/fonts.css');
+@import url('/lib/fonts/inter/fonts.css');
+
+:root {
+  /* Lienzo: defineVideo() fija --w, --h y --u (1u = 1% del lado corto). */
+  --w: 1080px;
+  --h: 1920px;
+  --u: 10.8px;
+
+  /* Una fuente de títulos, una de interfaz. */
+  --font-title: 'Unbounded', 'Arial Black', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Un solo color de acento. Con marca: usa var(--brand-*) en su lugar. */
+  --bg: #0e0f12;
+  --surface: #17191e;
+  --line: #2a2d34;
+  --ink: #f3f1ec;
+  --muted: #8a8f98;
+  --accent: #ff4d1f;
+
+  /* Zonas seguras (lo que tapan los botones de la red social). */
+  --safe-top: calc(var(--h) * 0.05);
+  --safe-bottom: calc(var(--h) * 0.05);
+  --safe-left: calc(var(--w) * 0.05);
+  --safe-right: calc(var(--w) * 0.05);
+}
+
+/* Reels / TikTok / Shorts: arriba el encabezado, abajo descripción, derecha botones. */
+html[data-fmt='9x16'] {
+  --safe-top: calc(var(--h) * 0.12);
+  --safe-bottom: calc(var(--h) * 0.2);
+  --safe-left: calc(var(--w) * 0.06);
+  --safe-right: calc(var(--w) * 0.14);
+}
+
+/* overflow: clip (no hidden): hidden crea un contenedor con scroll y el navegador puede
+   moverlo solo (scroll anchoring) según lo dibujado antes → render no determinista. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: var(--w);
+  height: var(--h);
+  overflow: clip;
+  overflow-anchor: none;
+  background: var(--bg);
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  font-kerning: normal;
+}
+
+#stage {
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  overflow: clip;
+  overflow-anchor: none;
+  background: var(--bg);
+  isolation: isolate;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
+.abs {
+  position: absolute;
+}
+
+.title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+.ui {
+  font-family: var(--font-ui);
+}
+
+/* Contenedor que respeta las zonas seguras. */
+.safe {
+  position: absolute;
+  top: var(--safe-top);
+  bottom: var(--safe-bottom);
+  left: var(--safe-left);
+  right: var(--safe-right);
+}
+
+/* ?safe=1 en el reproductor: marca en rojo lo que tapará la interfaz de la red. */
+html[data-safe] #stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  border-style: solid;
+  border-color: rgba(255, 0, 72, 0.28);
+  border-width: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}

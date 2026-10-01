@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Plantilla</title>
+<link rel="stylesheet" href="/lib/base.css">
+<style>
+  /* Todo el layout vive en CSS; render(t) solo mueve transform, clip y opacidad. */
+  .hook { display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * 1.4); padding-left: calc(var(--safe-left) + var(--u) * 1); }
+  .hook .line { font-size: calc(var(--u) * 10.2); white-space: nowrap; }
+  .hook .acc { color: var(--accent); }
+  html[data-orient='landscape'] .hook { padding-left: calc(var(--w) * 0.12); }
+
+  #wipe { background: var(--accent); z-index: 20; clip-path: inset(100% 0 0 0); }
+
+  .ui-scene { display: grid; place-items: center; }
+  .card { width: calc(var(--u) * 84); background: var(--surface); border: 2px solid var(--line); border-radius: calc(var(--u) * 3); padding: calc(var(--u) * 4.4); transform-origin: 50% 0; display: flex; flex-direction: column; gap: calc(var(--u) * 2.4); }
+  html[data-orient='landscape'] .card { width: calc(var(--u) * 70); }
+  .card-head { display: flex; align-items: center; gap: calc(var(--u) * 2); font-weight: 600; font-size: calc(var(--u) * 4.4); }
+  .dot { width: calc(var(--u) * 4); height: calc(var(--u) * 4); border-radius: 50%; background: var(--accent); flex: none; }
+  .row { display: flex; align-items: center; gap: calc(var(--u) * 2); font-size: calc(var(--u) * 4); color: var(--muted); padding: calc(var(--u) * 2.2) 0; border-top: 2px solid var(--line); }
+  .row b { color: var(--ink); font-weight: 600; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .bar { height: calc(var(--u) * 1.6); border-radius: 99px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); }
+  .btn { align-self: flex-start; font-weight: 700; font-size: calc(var(--u) * 4.2); padding: calc(var(--u) * 2.2) calc(var(--u) * 4.4); border-radius: 99px; border: 3px solid var(--accent); color: var(--accent); }
+  .btn.on { background: var(--accent); color: var(--bg); }
+
+  .data { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: calc(var(--u) * 2); }
+  .big { font-size: calc(var(--u) * 26); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .label { font-size: calc(var(--u) * 5); color: var(--muted); font-weight: 500; }
+  .ruler { position: absolute; left: 0; right: 0; bottom: calc(var(--safe-bottom) + var(--u) * 4); height: calc(var(--u) * 9); }
+  .tick { position: absolute; bottom: 0; width: calc(var(--u) * 0.5); background: var(--line); border-radius: 2px; }
+  .head { position: absolute; bottom: calc(var(--u) * -2); width: calc(var(--u) * 0.9); height: calc(var(--u) * 13); background: var(--accent); border-radius: 2px; }
+
+  .outro { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--u) * 4); }
+  .mark { width: calc(var(--u) * 22); height: calc(var(--u) * 22); border: calc(var(--u) * 1.6) solid var(--ink); border-radius: calc(var(--u) * 4); position: relative; overflow: hidden; }
+  .mark i { position: absolute; top: 12%; bottom: 12%; width: calc(var(--u) * 2.2); left: 0; background: var(--accent); border-radius: 99px; }
+  .outro .name { font-size: calc(var(--u) * 11); }
+  .outro .cta { font-size: calc(var(--u) * 4.4); color: var(--muted); font-weight: 500; min-height: 1.3em; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <section id="gancho" class="layer hook">
+    <div class="title line" data-split>CADA</div>
+    <div class="title line" data-split>FOTOGRAMA</div>
+    <div class="title line"><span data-split>ES</span> <span class="acc" data-split>CÓDIGO</span></div>
+  </section>
+
+  <section id="interfaz" class="layer ui-scene">
+    <div class="card">
+      <div class="card-head piece"><span class="dot"></span>render.mjs</div>
+      <div class="row piece">Formato <b id="size">1080×1920</b></div>
+      <div class="row piece">Fotogramas <b id="frames">0 / 360</b></div>
+      <div class="bar piece"><i id="fill"></i></div>
+      <div class="btn piece" id="btn">Renderizar</div>
+    </div>
+  </section>
+
+  <section id="dato" class="layer data">
+    <div class="title big" id="count">0</div>
+    <div class="label">fotogramas, uno por uno</div>
+    <div class="ruler" id="ruler"><span class="head" id="playhead"></span></div>
+  </section>
+
+  <section id="cierre" class="layer outro">
+    <div class="mark" id="mark"><i id="markHead"></i></div>
+    <div class="title name" data-split>seek(t)</div>
+    <div class="cta" id="cta"></div>
+  </section>
+
+  <div id="wipe" class="layer"></div>
+</div>
+
+<script type="module">
+import {
+  defineVideo, scenes, splitText, spring, SPRINGS, stagger, track, keyframes,
+  createCursor, countUp, typewriter, grain, punch, progress, clamp,
+} from '/lib/motion.js';
+
+let S, hookLines, pieces, cursor, g, ticks, outroChars;
+const CTA = 'Hecho con Claude Code';
+
+defineVideo({
+  async setup(ctx) {
+    // Gancho: cada palabra se parte en letras que suben desde una máscara.
+    hookLines = [...document.querySelectorAll('#gancho .line')].map((line) =>
+      [...line.querySelectorAll('[data-split]'), ...(line.hasAttribute('data-split') ? [line] : [])]
+        .flatMap((el) => splitText(el, { mask: true })),
+    );
+    outroChars = splitText(document.querySelector('#cierre [data-split]'), { mask: true });
+    pieces = [...document.querySelectorAll('#interfaz .piece')];
+    document.getElementById('size').textContent = `${ctx.w}×${ctx.h}`;
+    document.getElementById('frames').textContent = `0 / ${ctx.duration * ctx.fps}`;
+
+    // Regla graduada del dato.
+    const ruler = document.getElementById('ruler');
+    ticks = Array.from({ length: 41 }, (_, i) => {
+      const el = document.createElement('span');
+      el.className = 'tick';
+      el.style.left = `${4 + i * 2.3}%`;
+      el.style.height = `${i % 5 === 0 ? 100 : 45}%`;
+      ruler.prepend(el);
+      return el;
+    });
+
+    // Escenas: ventanas en segundos alineadas al beat (120 BPM → beat = 0.5 s).
+    S = scenes(ctx, [
+      { id: 'gancho', start: 0, end: ctx.beat(4.6) },
+      { id: 'interfaz', start: ctx.beat(4.6), end: ctx.beat(14) },
+      { id: 'dato', start: ctx.beat(14), end: ctx.beat(20), sfxIn: 'impact' },
+      { id: 'cierre', start: ctx.beat(20), end: ctx.duration, sfxIn: 'impact' },
+    ]);
+
+    // Cursor con un clic real sobre el botón (en el beat 10).
+    const btn = document.getElementById('btn');
+    const stage = document.getElementById('stage').getBoundingClientRect();
+    const r = btn.getBoundingClientRect();
+    const bx = r.left - stage.left + r.width * 0.55;
+    const by = r.top - stage.top + r.height * 0.6;
+    cursor = createCursor(ctx, {
+      points: [
+        { t: ctx.beat(8), x: ctx.w * 0.92, y: ctx.h * 0.95 },
+        { t: ctx.beat(10), x: bx, y: by, click: true, travel: 0.8 },
+        { t: ctx.beat(13), x: bx + ctx.u * 10, y: by + ctx.u * 12, travel: 1 },
+      ],
+      show: [ctx.beat(8), ctx.beat(14)],
+    });
+
+    // Sonido: todo se registra aquí, una vez.
+    ctx.sfx(ctx.beat(4) - 0.08, 'whoosh');
+    pieces.forEach((_, i) => ctx.sfx(ctx.beat(5) + stagger(i, { each: 0.12 }), 'tick', { gain: 0.5 }));
+    ctx.sfx(ctx.beat(13), 'ding');
+    ctx.sfx(ctx.beat(20), 'riser', { anchor: 'end' });
+
+    g = grain(ctx, { opacity: 0.05 });
+  },
+
+  render(t, ctx) {
+    const u = ctx.u;
+    g.render(t);
+
+    S.render(t, {
+      gancho(lt) {
+        hookLines.forEach((chars, li) => {
+          const start = ctx.beat(li) - 0.2; // arranca antes de t=0: el primer fotograma ya tiene letras
+          chars.forEach((c, i) => {
+            const s = spring(lt, { ...SPRINGS.snappy, delay: start + stagger(i, { each: 0.035 }) });
+            c.style.transform = `translate(0, ${(1 - s) * 1.45}em)`;
+          });
+        });
+      },
+
+      interfaz(lt, sc) {
+        const t0 = ctx.beat(5) - sc.start;
+        pieces.forEach((p, i) => {
+          const d = t0 + stagger(i, { each: 0.12 });
+          const s = spring(lt, { ...SPRINGS.snappy, delay: d });
+          track(p, lt, { y: (1 - s) * 6 * u, clipY: clamp((lt - d) / 0.18) });
+        });
+        const card = document.querySelector('.card');
+        const push = keyframes(t, [[ctx.beat(12.5), 1], [ctx.beat(14), 1.06, 'inCubic']]);
+        track(card, t, { scale: push * punch(t, ctx.beat(10), { amount: 0.025 }) });
+
+        // Barra y contador avanzan después del clic.
+        const p = progress(t, ctx.beat(10), ctx.beat(13), 'inOutCubic');
+        document.getElementById('fill').style.transform = `scaleX(${p})`;
+        const total = ctx.duration * ctx.fps;
+        document.getElementById('frames').textContent = `${Math.round(p * total)} / ${total}`;
+        const btn = document.getElementById('btn');
+        const on = t >= ctx.beat(10);
+        btn.classList.toggle('on', on);
+        btn.textContent = t >= ctx.beat(13) ? 'Listo ✓' : on ? 'Renderizando…' : 'Renderizar';
+      },
+
+      dato(lt, sc) {
+        const el = document.getElementById('count');
+        el.textContent = countUp(lt, { start: 0, end: 1.4, to: 900, ease: 'outExpo' });
+        track(el, lt, { scale: punch(lt, 1.5, { amount: 0.06 }) * keyframes(lt, [[0, 1.12], [0.35, 1, 'snap']]) });
+        const head = progress(lt, 0, sc.dur, 'linear');
+        const left = 4 + head * 92;
+        document.getElementById('playhead').style.left = `${left}%`;
+        ticks.forEach((tk, i) => (tk.style.background = 4 + i * 2.3 <= left ? 'var(--ink)' : 'var(--line)'));
+      },
+
+      cierre(lt) {
+        const s = spring(lt + 0.07, { ...SPRINGS.bouncy }); // ya asoma en el fotograma del golpe
+        track(document.getElementById('mark'), lt, { scale: s, rotate: (1 - s) * -20 });
+        const mh = document.getElementById('markHead');
+        mh.style.left = `${keyframes(lt, [[0.2, 8], [1.2, 78, 'inOutCubic']])}%`;
+        outroChars.forEach((c, i) => {
+          const k = spring(lt, { ...SPRINGS.snappy, delay: 0.15 + stagger(i, { each: 0.04 }) });
+          c.style.transform = `translate(0, ${(1 - k) * 1.45}em)`;
+        });
+        document.getElementById('cta').textContent = typewriter(CTA, lt, { start: 0.6, cps: 32 });
+      },
+    });
+
+    // Cortina de acento: sube desde abajo, cubre y se va hacia arriba (cambio de escena).
+    const top = keyframes(t, [[ctx.beat(4) - 0.1, 100], [ctx.beat(4.6), 0, 'inOutExpo']]);
+    const bottom = keyframes(t, [[ctx.beat(4.7), 0], [ctx.beat(5.4), 100, 'inOutExpo']]);
+    document.getElementById('wipe').style.clipPath = `inset(${top}% 0 ${bottom}% 0)`;
+
+    cursor.render(t);
+  },
+});
+</script>
+</body>
+</html>

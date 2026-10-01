@@ -1,0 +1,15 @@
+{
+  "title": "Plantilla",
+  "duration": 12,
+  "fps": 30,
+  "bpm": 120,
+  "seed": 4211,
+  "formats": ["9x16", "1x1", "16x9"],
+  "music": { "mode": "compose", "style": "minimal", "key": "Am" },
+  "sections": [
+    { "start": 0, "end": 2.3, "energy": "hook" },
+    { "start": 2.3, "end": 7, "energy": "build" },
+    { "start": 7, "end": 10, "energy": "drop" },
+    { "start": 10, "end": 12, "energy": "outro" }
+  ]
+}

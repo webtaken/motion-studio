@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "motion-studio",
+  "description": "Motion graphics con código para Claude Code: de una URL o una idea a un MP4 9:16, 1:1 y 16:9.",
+  "owner": {
+    "name": "webtaken (@saulautomatiza)",
+    "url": "https://github.com/webtaken"
+  },
+  "plugins": [
+    {
+      "name": "motion-studio",
+      "description": "Monta y usa un estudio de motion graphics: HTML + seek(t) → Playwright → ffmpeg, música en código, marca real y autocrítica de fotogramas.",
+      "source": "./",
+      "version": "0.1.0",
+      "category": "media",
+      "keywords": [
+        "motion-graphics",
+        "video",
+        "animation",
+        "mp4"
+      ]
+    }
+  ]
+}

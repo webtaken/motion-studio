@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Producto</title>
+<link rel="stylesheet" href="/lib/base.css">
+<style>
+  /* Colores y fuentes de la marca (brand.json) con respaldo del estudio. */
+  :root {
+    --bg: var(--brand-bg, #0e0f12);
+    --ink: var(--brand-text, #f3f1ec);
+    --accent: var(--brand-accent, #ff4d1f);
+    --font-title: var(--brand-font-title, 'Unbounded', system-ui, sans-serif);
+    --font-ui: var(--brand-font-ui, 'Inter', system-ui, sans-serif);
+  }
+  #stage { background: var(--bg); color: var(--ink); }
+  .title { font-family: var(--font-title); }
+
+  .hook { display: flex; align-items: center; padding: 0 calc(var(--safe-left) + var(--u) * 1); }
+  .hook .words { font-size: calc(var(--u) * 11); line-height: 1.02; display: flex; flex-wrap: wrap; column-gap: 0.28em; max-width: 100%; }
+  html[data-orient='landscape'] .hook .words { font-size: calc(var(--u) * 12); max-width: 80%; }
+  .hook .acc { color: var(--accent); }
+
+  .prod { display: grid; place-items: center; }
+  .device { position: relative; border-radius: calc(var(--u) * 3); overflow: hidden; background: color-mix(in srgb, var(--ink) 6%, var(--bg)); box-shadow: 0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0, 0, 0, 0.28); border: calc(var(--u) * 0.6) solid color-mix(in srgb, var(--ink) 14%, transparent); }
+  .strip { position: absolute; left: 0; right: 0; }
+
+  .feat { display: grid; }
+  .feat-card { position: absolute; border-radius: calc(var(--u) * 2.4); overflow: hidden; background: #fff; box-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0, 0, 0, 0.22); }
+  .feat-card img { width: 100%; height: 100%; object-fit: cover; object-position: top center; transform-origin: 50% 30%; }
+  .feat-label { position: absolute; display: flex; flex-direction: column; gap: calc(var(--u) * 1.6); }
+  .feat-label .n { font: 700 calc(var(--u) * 4) var(--font-ui); color: var(--accent); letter-spacing: 0.04em; }
+  .feat-label .t { font-family: var(--font-title); font-weight: 700; font-size: calc(var(--u) * 7.4); line-height: 1.04; }
+
+  .metric { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: calc(var(--u) * 2); text-align: center; }
+  .metric .v { font-size: calc(var(--u) * 21); font-variant-numeric: tabular-nums; }
+  .metric .l { font: 500 calc(var(--u) * 5) var(--font-ui); opacity: 0.75; }
+  .metric .bar { width: calc(var(--u) * 46); height: calc(var(--u) * 1.4); background: var(--accent); border-radius: 99px; transform-origin: 0 50%; }
+
+  .outro { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--u) * 5); text-align: center; }
+  .outro .logo { height: calc(var(--u) * 20); width: auto; max-width: calc(var(--u) * 70); object-fit: contain; }
+  .outro .logo-text { font-size: calc(var(--u) * 9); }
+  .outro .cta { font-size: calc(var(--u) * 7.6); }
+  .outro .pill { font: 700 calc(var(--u) * 4.4) var(--font-ui); background: var(--accent); color: var(--bg); padding: calc(var(--u) * 2.4) calc(var(--u) * 5.4); border-radius: 99px; min-height: 1em; }
+
+  .ph { display: grid; place-items: center; background: color-mix(in srgb, var(--ink) 10%, var(--bg)); color: var(--ink); font: 600 calc(var(--u) * 3.6) var(--font-ui); text-align: center; padding: calc(var(--u) * 4); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <section id="gancho" class="layer hook"><div class="title words" id="hook"></div></section>
+  <section id="producto" class="layer prod"><div class="device" id="device"></div></section>
+  <section id="f1" class="layer feat"></section>
+  <section id="f2" class="layer feat"></section>
+  <section id="f3" class="layer feat"></section>
+  <section id="metrica" class="layer metric">
+    <div class="title v" id="mv">0</div>
+    <div class="l" id="ml"></div>
+    <div class="bar" id="mbar"></div>
+  </section>
+  <section id="cierre" class="layer outro">
+    <div id="logoBox"></div>
+    <div class="title cta" id="cta"></div>
+    <div class="pill" id="url"></div>
+  </section>
+</div>
+
+<script type="module">
+import {
+  defineVideo, scenes, splitText, spring, SPRINGS, stagger, track, keyframes,
+  createCursor, countUp, typewriter, punch, progress, clamp, ease,
+} from '/lib/motion.js';
+
+// Estructura de 5 beats (Guía MOTION, paso 2). Tiempos en beats: 120 BPM → 1 beat = 0,5 s.
+const B = { hook: 0, prod: 6, f1: 14, f2: 19.33, f3: 24.66, metric: 30, outro: 35 };
+let S, hookWords, strips, feats, cursor, ctaChars, logoEl, copy;
+
+const imgLoad = (src) => new Promise((res) => {
+  const i = new Image();
+  i.onload = () => res(i);
+  i.onerror = () => res(null);
+  i.src = src;
+});
+
+function placeholder(el, msg) {
+  el.classList.add('ph');
+  el.textContent = msg;
+}
+
+defineVideo({
+  async setup(ctx) {
+    copy = ctx.config.copy ?? {};
+    const brand = ctx.brand;
+    const shots = brand?.shots ?? {};
+    const u = ctx.u;
+    const bt = (n) => ctx.beat(n);
+
+    // 1. Gancho: el problema en ≤ 5 palabras, una por beat; la última en acento.
+    const hook = document.getElementById('hook');
+    const words = (copy.hook ?? 'Tu problema en cinco palabras').split(/\s+/);
+    hook.innerHTML = words.map((w, i) => `<span class="${i === words.length - 1 ? 'acc' : ''}">${w}</span>`).join(' ');
+    hookWords = [...hook.children].map((w) => splitText(w, { mask: true }));
+
+    // 2. Producto: la captura REAL se arma en franjas que entran por lados alternos.
+    const device = document.getElementById('device');
+    const shotSrc = brand && (ctx.portrait ? shots.mobile : shots.desktop);
+    const img = shotSrc ? await imgLoad(brand.asset(shotSrc)) : null;
+    const aspect = img ? img.naturalWidth / img.naturalHeight : ctx.portrait ? 0.46 : 1.6;
+    let dw = ctx.pick({ '9x16': ctx.h * 0.68 * aspect, '1x1': ctx.w * 0.8, '16x9': ctx.w * 0.66 });
+    let dh = dw / aspect;
+    const maxH = ctx.h * (ctx.portrait ? 0.72 : 0.78);
+    if (dh > maxH) dh = maxH; // recorta abajo, nunca deforma
+    dw = Math.round(dw);
+    dh = Math.round(dh);
+    Object.assign(device.style, { width: `${dw}px`, height: `${dh}px` });
+    const N = 5;
+    strips = [];
+    if (img) {
+      for (let i = 0; i < N; i++) {
+        const s = document.createElement('div');
+        s.className = 'strip';
+        // Cada franja recorta la MISMA imagen completa (img + overflow), no un
+        // background por franja: así el escalado es continuo y no hay rayas.
+        const top = Math.round((i * dh) / N);
+        const bottom = Math.round(((i + 1) * dh) / N);
+        Object.assign(s.style, { top: `${top}px`, height: `${bottom - top}px`, overflow: 'hidden' });
+        const im = document.createElement('img');
+        im.src = img.src;
+        Object.assign(im.style, { position: 'absolute', left: '0', top: `${-top}px`, width: `${dw}px`, height: 'auto', maxWidth: 'none' });
+        s.appendChild(im);
+        device.appendChild(s);
+        strips.push(s);
+      }
+    } else placeholder(device, 'Sin capturas: npm run capture -- <url> <marca>');
+
+    // 3. Tres funciones: recortes reales de secciones (o la captura completa).
+    const secs = (shots.sections ?? []).filter((s) => s.h >= 200).slice(1, 4);
+    const featTexts = copy.features ?? ['Función uno', 'Función dos', 'Función tres'];
+    feats = [];
+    for (let k = 0; k < 3; k++) {
+      const layer = document.getElementById(`f${k + 1}`);
+      const card = document.createElement('div');
+      card.className = 'feat-card';
+      const label = document.createElement('div');
+      label.className = 'feat-label';
+      label.innerHTML = `<span class="n">0${k + 1}</span><span class="t"></span>`;
+      label.querySelector('.t').textContent = featTexts[k] ?? '';
+      layer.append(card, label);
+      const src = secs[k]?.file ?? shots.desktop;
+      const fimg = src && brand ? await imgLoad(brand.asset(src)) : null;
+      if (fimg) {
+        const im = document.createElement('img');
+        im.src = fimg.src;
+        card.appendChild(im);
+      } else placeholder(card, `Captura de la función ${k + 1}`);
+      // Layout por formato: tarjeta arriba + texto abajo (vertical) o lado a lado.
+      const L = ctx.pick({
+        '9x16': { cx: ctx.w * 0.06, cy: ctx.h * 0.2, cw: ctx.w * 0.88, ch: ctx.h * 0.36, lx: ctx.w * 0.07, ly: ctx.h * 0.6, lw: ctx.w * 0.8 },
+        '1x1': { cx: ctx.w * 0.06, cy: ctx.h * 0.08, cw: ctx.w * 0.88, ch: ctx.h * 0.5, lx: ctx.w * 0.07, ly: ctx.h * 0.64, lw: ctx.w * 0.86 },
+        '16x9': { cx: ctx.w * 0.05, cy: ctx.h * 0.14, cw: ctx.w * 0.54, ch: ctx.h * 0.72, lx: ctx.w * 0.63, ly: ctx.h * 0.32, lw: ctx.w * 0.32 },
+      });
+      Object.assign(card.style, { left: `${L.cx}px`, top: `${L.cy}px`, width: `${L.cw}px`, height: `${L.ch}px` });
+      Object.assign(label.style, { left: `${L.lx}px`, top: `${L.ly}px`, width: `${L.lw}px` });
+      feats.push({ card, label, img: card.querySelector('img'), words: splitText(label.querySelector('.t'), { by: 'words', mask: true }), L, start: bt(B[`f${k + 1}`]) });
+    }
+
+    // Cursor: un clic real dentro de cada función.
+    const pts = [{ t: feats[0].start, x: ctx.w * 0.96, y: ctx.h * 0.98 }];
+    feats.forEach((f, k) => {
+      const x = f.L.cx + f.L.cw * [0.62, 0.38, 0.7][k];
+      const y = f.L.cy + f.L.ch * [0.55, 0.42, 0.6][k];
+      pts.push({ t: f.start + 1.4, x, y, click: true, travel: 0.9 });
+    });
+    cursor = createCursor(ctx, { points: pts, show: [feats[0].start + 0.3, bt(B.metric)] });
+
+    // 4. Métrica.
+    document.getElementById('ml').textContent = copy.metric?.label ?? '';
+
+    // 5. Logo + llamado a la acción.
+    const logoBox = document.getElementById('logoBox');
+    const logo = brand?.logos?.[0];
+    if (logo) {
+      logoEl = document.createElement('img');
+      logoEl.className = 'logo';
+      logoEl.src = brand.asset(logo.file);
+      logoBox.appendChild(logoEl);
+    } else {
+      logoEl = document.createElement('div');
+      logoEl.className = 'title logo-text';
+      logoEl.textContent = brand?.siteName || brand?.name || copy.product || 'Tu marca';
+      logoBox.appendChild(logoEl);
+    }
+    document.getElementById('cta').textContent = copy.cta ?? 'Pruébalo gratis';
+    ctaChars = splitText(document.getElementById('cta'), { mask: true });
+
+    S = scenes(ctx, [
+      { id: 'gancho', start: 0, end: bt(B.prod) },
+      { id: 'producto', start: bt(B.prod), end: bt(B.f1), sfxIn: 'whoosh' },
+      { id: 'f1', start: bt(B.f1), end: bt(B.f2), sfxIn: 'swipe' },
+      { id: 'f2', start: bt(B.f2), end: bt(B.f3), sfxIn: 'swipe' },
+      { id: 'f3', start: bt(B.f3), end: bt(B.metric), sfxIn: 'swipe' },
+      { id: 'metrica', start: bt(B.metric), end: bt(B.outro), sfxIn: 'impact' },
+      { id: 'cierre', start: bt(B.outro), end: ctx.duration, sfxIn: 'impact' },
+    ]);
+    words.forEach((_, i) => ctx.sfx(bt(i), 'tick', { gain: 0.8 }));
+    strips.forEach((_, i) => ctx.sfx(bt(B.prod) + 0.25 + i * 0.25, 'tick', { gain: 0.5 }));
+    ctx.sfx(bt(B.outro), 'riser', { anchor: 'end' });
+    ctx.sfx(bt(B.outro + 2), 'pop');
+  },
+
+  render(t, ctx) {
+    const u = ctx.u;
+    S.render(t, {
+      gancho(lt) {
+        hookWords.forEach((chars, w) => {
+          chars.forEach((c, i) => {
+            const s = spring(lt, { ...SPRINGS.snappy, delay: ctx.beat(w) - 0.15 + i * 0.025 });
+            c.style.transform = `translate(0, ${(1 - s) * 1.45}em)`;
+          });
+        });
+        // Salida: todo sube junto antes del corte.
+        track(document.getElementById('hook'), lt, { y: [[ctx.beat(5.4), 0], [ctx.beat(6), -ctx.h * 0.08, 'inCubic']] });
+      },
+
+      producto(lt, sc) {
+        const dev = document.getElementById('device');
+        strips.forEach((s, i) => {
+          const d = 0.25 + i * 0.25;
+          const k = spring(lt, { ...SPRINGS.snappy, delay: d });
+          const dir = i % 2 ? 1 : -1;
+          // Píxeles enteros: con decimales el borde se suaviza y aparecen rayas.
+          s.style.transform = `translate(${Math.round(dir * (1 - k) * ctx.w)}px, 0)`;
+        });
+        // Push-in lento y salida hacia arriba al cambiar de escena.
+        const push = keyframes(lt, [[0, 0.94], [sc.dur, 1.02, 'linear']]);
+        const out = keyframes(lt, [[sc.dur - 0.35, 0], [sc.dur, -ctx.h * 0.12, 'inCubic']]);
+        track(dev, lt, { scale: push, y: out });
+      },
+
+      ...Object.fromEntries(
+        [0, 1, 2].map((k) => [
+          `f${k + 1}`,
+          (lt, sc) => {
+            const f = feats[k];
+            const inK = spring(lt, { ...SPRINGS.snappy });
+            const side = k % 2 ? -1 : 1;
+            track(f.card, lt, {
+              x: (1 - inK) * side * ctx.w * 0.6,
+              rotate: (1 - inK) * side * 4,
+              scale: punch(lt, 1.4, { amount: 0.03 }),
+            });
+            if (f.img) track(f.img, lt, { scale: keyframes(lt, [[0, 1.12], [sc.dur, 1.0, 'outCubic']]) });
+            f.words.forEach((w, i) => {
+              const s = spring(lt, { ...SPRINGS.snappy, delay: 0.3 + stagger(i, { each: 0.07 }) });
+              w.style.transform = `translate(0, ${(1 - s) * 1.45}em)`;
+            });
+            track(f.label.querySelector('.n'), lt, { clipX: progress(lt, 0.15, 0.45, 'outCubic') });
+          },
+        ]),
+      ),
+
+      metrica(lt) {
+        const m = copy.metric ?? { value: 100 };
+        document.getElementById('mv').textContent = countUp(lt, { start: -0.1, end: 1.5, from: Math.round(m.value * 0.4), to: m.value, ease: 'outExpo', prefix: m.prefix ?? '', suffix: m.suffix ?? '' });
+        track(document.getElementById('mv'), lt, { scale: keyframes(lt, [[0, 1.14], [0.4, 1, 'snap']]) * punch(lt, 1.5, { amount: 0.05 }) });
+        track(document.getElementById('mbar'), lt, { scaleX: progress(lt, 0.2, 1.6, 'outCubic') });
+        track(document.getElementById('ml'), lt, { clipY: progress(lt, 0.4, 0.8, 'outCubic'), y: (1 - progress(lt, 0.4, 0.8, 'outCubic')) * 3 * u });
+      },
+
+      cierre(lt) {
+        const s = spring(lt + 0.06, { ...SPRINGS.bouncy });
+        track(logoEl, lt, { scale: s, y: (1 - s) * 4 * u });
+        ctaChars.forEach((c, i) => {
+          const k = spring(lt, { ...SPRINGS.snappy, delay: 0.35 + i * 0.025 });
+          c.style.transform = `translate(0, ${(1 - k) * 1.45}em)`;
+        });
+        const pill = document.getElementById('url');
+        const p = spring(lt, { ...SPRINGS.bouncy, delay: 1.0 });
+        track(pill, lt, { scale: p });
+        pill.textContent = typewriter(copy.url ?? '', lt, { start: 1.1, cps: 24 }) || ' ';
+      },
+    });
+    cursor.render(t);
+  },
+});
+</script>
+</body>
+</html>

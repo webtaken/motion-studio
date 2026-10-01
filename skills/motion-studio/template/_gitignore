@@ -1,0 +1,18 @@
+node_modules/
+out/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+# referencias: se versionan las notas, no los videos pesados
+refs/**/*.mp4
+refs/**/*.mov
+refs/**/*.webm
+refs/*/frames/
+.motion-studio-backup/
+# audio que se regenera solo (la música compuesta es determinista)
+videos/*/audio/music.wav
+videos/*/audio/music.json
+videos/*/audio/beats.json

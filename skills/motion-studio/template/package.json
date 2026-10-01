@@ -1,0 +1,31 @@
+{
+  "name": "mi-motion-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Estudio de motion graphics con código (window.seek(t) → MP4).",
+  "engines": {
+    "node": ">=22"
+  },
+  "motionStudio": {
+    "version": "0.1.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "new": "node scripts/new.mjs",
+    "render": "node scripts/render.mjs",
+    "still": "node scripts/still.mjs",
+    "sheet": "node scripts/sheet.mjs",
+    "check": "node scripts/check.mjs",
+    "capture": "node scripts/capture.mjs",
+    "fonts": "node scripts/fonts.mjs",
+    "ref": "node scripts/ref.mjs",
+    "music": "node scripts/audio.mjs music",
+    "beats": "node scripts/audio.mjs beats",
+    "mix": "node scripts/audio.mjs mix",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

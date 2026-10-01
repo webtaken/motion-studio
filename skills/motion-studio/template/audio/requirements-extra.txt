@@ -1,0 +1,2 @@
+# Opcional: detección de beats más precisa en pistas propias (pesa ~300 MB).
+librosa>=0.10

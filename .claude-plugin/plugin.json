@@ -1,0 +1,22 @@
+{
+  "name": "motion-studio",
+  "version": "0.1.0",
+  "description": "Estudio de motion graphics con código: Claude escribe el programa que dibuja cada fotograma (window.seek(t)) y Playwright + ffmpeg lo convierten en MP4, con música compuesta en código, marca real capturada de la web y autocrítica con hojas de contacto.",
+  "author": {
+    "name": "webtaken (@saulautomatiza)",
+    "url": "https://github.com/webtaken"
+  },
+  "homepage": "https://github.com/webtaken/motion-studio",
+  "repository": "https://github.com/webtaken/motion-studio",
+  "license": "MIT",
+  "keywords": [
+    "motion-graphics",
+    "video",
+    "animation",
+    "playwright",
+    "ffmpeg",
+    "mp4",
+    "reels",
+    "product-video"
+  ]
+}
