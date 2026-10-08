@@ -1,13 +1,13 @@
 ---
 name: motion-studio
 description: >-
-  Estudio de motion graphics con código: monta desde cero (o usa) un estudio donde cada video es un
-  HTML con window.seek(t) que Playwright + ffmpeg renderizan a MP4, con música compuesta en código y
-  sfx sobre el beat. Úsala para hacer videos animados, motion graphics, video de lanzamiento o promo de
-  un producto desde su URL (capturas, logo, colores y fuentes reales), reels/TikTok 9:16, 1:1 y 16:9,
-  showreels, tipografía cinética, copiar el estilo de un video de referencia, hojas de contacto y
-  autocrítica de fotogramas. Use for animated video, product launch/promo video, motion design,
-  HTML-to-MP4 rendering, social video, kinetic typography, "make a motion graphics video".
+  Use when the user asks to make a motion graphics video, a product launch or promo video from a
+  URL, an animated reel/TikTok (9:16, 1:1, 16:9), kinetic typography or a showreel, or to copy the
+  style of a reference video. Sets up (or reuses) a local studio where each video is an HTML page
+  with window.seek(t) that Playwright + ffmpeg render to MP4, with music composed in code, sfx on
+  the beat, the real brand (screenshots, logo, colors, fonts) and frame-by-frame self-critique on
+  contact sheets. Úsala para videos animados, motion graphics, video de lanzamiento o promo de un
+  producto desde su URL, reels 9:16, tipografía cinética o copiar el estilo de una referencia.
 ---
 
 # Motion Studio
@@ -32,8 +32,8 @@ node <carpeta-de-esta-skill>/scripts/init.mjs <destino>
 
 `<carpeta-de-esta-skill>` es donde está este SKILL.md (Claude Code lo indica como "Base
 directory"; en otros agentes suele ser `~/.agents/skills/motion-studio` o
-`~/.claude/skills/motion-studio`). Sin la skill en disco:
-`git clone --depth 1 https://github.com/webtaken/motion-studio /tmp/ms && node /tmp/ms/skills/motion-studio/scripts/init.mjs <destino>`.
+`~/.claude/skills/motion-studio`). Si la skill no está en disco, pide al usuario que la
+reinstale desde donde la obtuvo (descomprime la carpeta `motion-studio/` en su carpeta de skills).
 
 `init.mjs` copia la plantilla, instala Playwright + Chromium, prepara Python (numpy) para el
 audio, inicializa git, corre `npm run doctor` y hace un render de prueba de 2 s. Opciones:
@@ -41,6 +41,21 @@ audio, inicializa git, corre `npm run doctor` y hace un render de prueba de 2 s.
 
 Requisitos: Node ≥ 22, ffmpeg con libx264, Python 3 (opcional, para música y sfx).
 Si algo falta, `npm run doctor` dice el comando exacto para el sistema operativo.
+
+### Qué instala y a qué se conecta
+
+Avísale al usuario antes de correr `init.mjs`. Todo queda dentro de la carpeta del estudio:
+
+- **Solo al montar**: `npm install` (Playwright desde registry.npmjs.org), `npx playwright
+  install chromium` (navegador desde el CDN de Playwright) y `pip install numpy` (librosa con
+  `--with-librosa`) desde pypi.org en un `.venv` local. Después, `git init` local.
+- **Solo si el usuario lo pide**: `npm run capture -- <url>` abre la URL que él da;
+  `npm run fonts` descarga de fonts.googleapis.com / fonts.gstatic.com.
+- **Preview**: `npm run dev` sirve en `http://localhost:4321`.
+- **Render**: sin red (el guard la bloquea). Nada se envía a ningún servidor.
+- No corre nada con `sudo`: `doctor` solo *muestra* el comando si falta algo del sistema.
+- Variables de entorno opcionales: `FFMPEG_PATH`, `FFPROBE_PATH`, `MOTION_PYTHON`. Sin
+  llaves de API ni telemetría.
 
 ## 1. Lee las reglas del estudio
 

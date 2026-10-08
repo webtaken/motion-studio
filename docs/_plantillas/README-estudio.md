@@ -1,6 +1,6 @@
 # Mi estudio de motion
 
-Estudio creado con la skill [`motion-studio`](https://github.com/webtaken/motion-studio).
+Estudio creado con la skill `motion-studio`.
 Cada video es un programa: `window.seek(t)` pinta el fotograma exacto; Playwright y ffmpeg
 lo convierten en MP4.
 
